@@ -2,94 +2,14 @@ import './style.css';
 // import javascriptLogo from './javascript.svg'
 // import viteLogo from '/vite.svg'
 
-
-var sel = (e) => document.querySelector(e);
-
-var canvas = sel("#app");
-var ctx = canvas.getContext("2d");
-
-canvas.width = document.documentElement.clientWidth;
-canvas.height = document.documentElement.clientHeight;
-
-
-// https://zhuanlan.zhihu.com/p/605878598
-function isPointInsideRotatedRect(pt, p1, p2) {
-    // 计算矩形的中心点
-    const centerX = (p1.x + p2.x) / 2;
-    const centerY = (p1.y + p2.y) / 2;
-
-    // 计算矩形的宽度和高度
-    const width = Math.abs(p2.x - p1.x);
-    const height = Math.abs(p2.y - p1.y);
-
-    // 计算旋转角度
-    let angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
-
-    // 平移点到矩形中心
-    const translatedX = pt.x - centerX;
-    const translatedY = pt.y - centerY;
-
-    // 逆向旋转点
-    const cosAngle = Math.cos(-angle * Math.PI / 180);
-    const sinAngle = Math.sin(-angle * Math.PI / 180);
-    const rotatedX = translatedX * cosAngle - translatedY * sinAngle;
-    const rotatedY = translatedX * sinAngle + translatedY * cosAngle;
-
-    // 检查点是否在矩形内
-    return Math.abs(rotatedX) <= width / 2 && Math.abs(rotatedY) <= height / 2;
-}
-
-// get the area of rect by three points a b c
-function getTriangleArea(a, b, c) {
-  var { x: x1, y: y1 } = a;
-  var { x: x2, y: y2 } = b;
-  var { x: x3, y: y3 } = c;
-  //b.x * a.y - a.x * b.y + (c.x * b.y - b.x * c.y) + (a.x * c.y - c.x * a.y)
-  var val = x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2);
-  return Math.abs(val) / 2;
-}
-
-function getNormalRect(a1, a2) {
-  var x = Math.min(a1.x, a2.x);
-  var y = Math.min(a1.y, a2.y);
-  var w = Math.abs(a1.x - a2.x);
-  var h = Math.abs(a1.y - a2.y);
-
-  return { x, y, w, h };
-}
-
-function getCanvasPoint(evt) {
-  var offsetLeft = canvas.offsetLeft;
-  var offsetTop = canvas.offsetTop;
-
-  var x = evt.pageX - offsetLeft;
-  var y = evt.pageY - offsetTop;
-
-  return { x, y };
-}
-
-function getParallelLines(m, n) {
-  // 计算方向向量v
-  const v = { x: n.x - m.x, y: n.y - m.y };
-
-  // 计算单位法线向量
-  const len = Math.sqrt(v.x * v.x + v.y * v.y);
-  const normal = { x: -v.y / len, y: v.x / len };
-
-  // 偏移距离
-  const d = 45;
-
-  // 计算l2和l3的端点
-  const m2 = { x: m.x + d * normal.x, y: m.y + d * normal.y };
-  const n2 = { x: n.x + d * normal.x, y: n.y + d * normal.y };
-  const m3 = { x: m.x - d * normal.x, y: m.y - d * normal.y };
-  const n3 = { x: n.x - d * normal.x, y: n.y - d * normal.y };
-
-  return [
-    { start: m2, end: n2 },
-    { start: m3, end: n3 }
-  ];
-}
+import {
+  sel,
+  getNormalRect,
+  isPointInsideRotatedRect,
+  getParallelLines,
+  getCanvasPoint
+} from './shared';
+import { canvas, context as ctx } from './context';
 
 class UI {
   key = "pointer";
@@ -203,7 +123,7 @@ class Line {
     this.end = point;
   }
 
-  toggle(flag)  {
+  toggle(flag) {
     this.theme.strokeStyle = flag ? "blue" : "red";
   }
 
@@ -256,7 +176,7 @@ class Line {
         points = [l2.start, l3.start, l3.end, l2.end];
       }
     } catch (err) {
-      console.log("error ", this.lines);
+      console.log("error ", this.lines, err);
     }
 
     var [firstPoint, ...restPoints] = points;
@@ -354,7 +274,7 @@ var mouseInfo = {
 };
 
 window.addEventListener("mousedown", (evt) => {
-  var { x, y } = getCanvasPoint(evt);
+  var { x, y } = getCanvasPoint(canvas, evt);
 
   mouseInfo.last = {
     x,
@@ -370,7 +290,7 @@ window.addEventListener("mousedown", (evt) => {
 });
 
 window.addEventListener("mousemove", (evt) => {
-  var { x, y } = getCanvasPoint(evt);
+  var { x, y } = getCanvasPoint(canvas, evt);
 
   app.updateState(x, y);
 
@@ -385,7 +305,8 @@ window.addEventListener("mousemove", (evt) => {
 });
 
 window.addEventListener("mouseup", (evt) => {
-  var { x, y } = getCanvasPoint(evt);
+  var { x, y } = getCanvasPoint(canvas, evt);
+  var p = { x, y };
 
   if (shape) {
     if (shape.isRightShape()) {
@@ -393,6 +314,8 @@ window.addEventListener("mouseup", (evt) => {
     }
     shape = null;
   }
+
+  console.log(p);
 });
 // end main
 
@@ -416,12 +339,12 @@ function update() {
 
   var element = findElement(mouseInfo.current);
   activeElement = element;
-  
+
   for (var e of elements) {
     if (e === activeElement) {
       e.toggle(true);
     } else {
-       e.toggle(false);
+      e.toggle(false);
     }
   }
 }
