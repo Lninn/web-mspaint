@@ -47,21 +47,20 @@ class UI {
 }
 
 function createApp() {
+  var mouseInfo = {
+    last: null,
+    current: null
+  };
+
   const app = {
     isDebug: false,
 
-    x: 0,
-    y: 0,
+    mouseInfo,
 
     // 当前的光标是否在canvas内（包含）
     flag: false,
     firstDraw: true
   };
-
-  function updateState(x, y) {
-    app.x = x;
-    app.y = y;
-  }
 
   // 在首次运行时画一个简单的画面，以提示用户应用准备就绪
   // 用户鼠标移动到canvas中后清除
@@ -93,8 +92,9 @@ function createApp() {
   }
 
   function update() {
-    var cx = 0 < app.x && app.x < canvas.width;
-    var cy = 0 < app.y && app.y < canvas.height;
+    var current = app.mouseInfo.current;
+    var cx = 0 < current?.x && current?.x < canvas.width;
+    var cy = 0 < current?.y && current?.y < canvas.height;
 
     app.flag = cx && cy;
 
@@ -103,7 +103,6 @@ function createApp() {
     }
   }
 
-  app.updateState = updateState;
   app.update = update;
   app.draw = draw;
 
@@ -268,15 +267,11 @@ function findElement(p) {
 }
 
 // main
-var mouseInfo = {
-  last: null,
-  current: null
-};
 
-window.addEventListener("mousedown", (evt) => {
+function onMouseDown(evt) {
   var { x, y } = getCanvasPoint(canvas, evt);
 
-  mouseInfo.last = {
+  app.mouseInfo.last = {
     x,
     y
   };
@@ -287,24 +282,17 @@ window.addEventListener("mousedown", (evt) => {
   } else if (uiInstance.key === "rect") {
     shape = new Rect(p);
   }
-});
+}
+function onMouseMove(evt) {
+  var p = getCanvasPoint(canvas, evt);
 
-window.addEventListener("mousemove", (evt) => {
-  var { x, y } = getCanvasPoint(canvas, evt);
-
-  app.updateState(x, y);
-
-  mouseInfo.current = {
-    x,
-    y
-  };
+  app.mouseInfo.current = p;
 
   if (shape) {
-    shape.update({ x, y });
+    shape.update(p);
   }
-});
-
-window.addEventListener("mouseup", (evt) => {
+}
+function onMouseUp(evt) {
   var { x, y } = getCanvasPoint(canvas, evt);
   var p = { x, y };
 
@@ -316,7 +304,10 @@ window.addEventListener("mouseup", (evt) => {
   }
 
   console.log(p);
-});
+}
+window.addEventListener("mousedown", onMouseDown);
+window.addEventListener("mousemove", onMouseMove);
+window.addEventListener("mouseup", onMouseUp);
 // end main
 
 function drawMouseInfo() {
@@ -325,11 +316,12 @@ function drawMouseInfo() {
     y: app.y
   };
   var text = JSON.stringify(info);
-  ctx.font = "12px serif";
+  ctx.font = "24px serif";
 
   var textWidth = ctx.measureText(text).width;
   var x = canvas.width - textWidth - 24;
   var y = canvas.height - 24;
+  ctx.fillStyle = "white";
   ctx.fillText(text, x, y);
 }
 
@@ -337,7 +329,7 @@ var activeElement;
 function update() {
   app.update();
 
-  var element = findElement(mouseInfo.current);
+  var element = findElement(app.mouseInfo.current);
   activeElement = element;
 
   for (var e of elements) {
