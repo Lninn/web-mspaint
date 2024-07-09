@@ -2,14 +2,9 @@ import './style.css';
 // import javascriptLogo from './javascript.svg'
 // import viteLogo from '/vite.svg'
 
-import {
-  sel,
-  getNormalRect,
-  isPointInsideRotatedRect,
-  getParallelLines,
-  getCanvasPoint
-} from './shared';
+import { sel,  getCanvasPoint } from './shared';
 import { canvas, context as ctx } from './context';
+import { Line, Rect } from './elements';
 
 class UI {
   key = "pointer";
@@ -109,134 +104,6 @@ function createApp() {
   return app;
 }
 
-class Line {
-  start;
-  end;
-
-  theme = { strokeStyle: "red" };
-
-  lines = [];
-
-  constructor(point) {
-    this.start = point;
-    this.end = point;
-  }
-
-  toggle(flag) {
-    this.theme.strokeStyle = flag ? "blue" : "red";
-  }
-
-  pointInThisShape(p) {
-    // https://stackoverflow.com/questions/17136084/checking-if-a-point-is-inside-a-rotated-rectangle
-
-    var [l2, l3] = this.lines;
-
-    //  △APD, △DPC, △CPB, △PBA.
-    //     var APD = getTriangleArea(a, p, d);
-    //     var DPC = getTriangleArea(d, p, c);
-    //     var CPB = getTriangleArea(c, p, b);
-    //     var PBA = getTriangleArea(p, b, a);
-
-    //     var someOfAllShape = APD + DPC + CPB + PBA;
-
-    //     var rectInfo = getNormalRect(a, d);
-
-    return isPointInsideRotatedRect(p, l2.start, l3.end);
-  }
-
-  update(end) {
-    this.end = end;
-
-    var lines = getParallelLines(this.start, end);
-    this.lines = lines;
-  }
-
-  // 主要是判断当前数据是否构成一个合适的矩形
-  isRightShape() {
-    var onX = this.start.x !== this.end.x;
-    var onY = this.start.y !== this.end.y;
-
-    return onX && onY;
-  }
-
-  draw() {
-    ctx.save();
-    ctx.beginPath(); // Start a new path
-    ctx.moveTo(this.start.x, this.start.y);
-    ctx.lineTo(this.end.x, this.end.y);
-    ctx.strokeStyle = this.theme.strokeStyle;
-    ctx.stroke();
-    ctx.restore();
-
-    var [l2, l3] = this.lines;
-    var points = [];
-    try {
-      if (this.lines.length) {
-        points = [l2.start, l3.start, l3.end, l2.end];
-      }
-    } catch (err) {
-      console.log("error ", this.lines, err);
-    }
-
-    var [firstPoint, ...restPoints] = points;
-    if (firstPoint) {
-      ctx.save();
-      ctx.strokeStyle = "red";
-      ctx.setLineDash([5, 15]);
-      ctx.beginPath();
-      ctx.moveTo(firstPoint.x, firstPoint.y);
-
-      restPoints.forEach((point) => {
-        ctx.lineTo(point.x, point.y);
-      });
-      ctx.closePath();
-
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-}
-
-class Rect {
-  x = 0;
-  y = 0;
-  w = 0;
-  h = 0;
-
-  start;
-  end;
-  constructor(point) {
-    var { x, y } = point;
-
-    this.x = x;
-    this.y = y;
-
-    this.start = point;
-    this.end = point;
-  }
-
-  pointInThisShape() {
-    return false;
-  }
-
-  isRightShape() {
-    return true;
-  }
-
-  update(end) {
-    var rectInfo = getNormalRect(this.start, end);
-
-    Object.assign(this, rectInfo);
-    this.end = end;
-  }
-
-  draw() {
-    ctx.beginPath(); // Start a new path
-    ctx.strokeStyle = "green";
-    ctx.strokeRect(this.x, this.y, this.w, this.h);
-  }
-}
-
 var uiInstance = new UI();
 const app = createApp();
 
@@ -268,99 +135,107 @@ function findElement(p) {
 
 // main
 
-function onMouseDown(evt) {
-  var { x, y } = getCanvasPoint(canvas, evt);
 
-  app.mouseInfo.last = {
-    x,
-    y
-  };
+function main() {
 
-  var p = { x, y };
-  if (uiInstance.key === "line") {
-    shape = new Line(p);
-  } else if (uiInstance.key === "rect") {
-    shape = new Rect(p);
-  }
-}
-function onMouseMove(evt) {
-  var p = getCanvasPoint(canvas, evt);
+  function onMouseDown(evt) {
+    var { x, y } = getCanvasPoint(canvas, evt);
 
-  app.mouseInfo.current = p;
+    app.mouseInfo.last = {
+      x,
+      y
+    };
 
-  if (shape) {
-    shape.update(p);
-  }
-}
-function onMouseUp(evt) {
-  var { x, y } = getCanvasPoint(canvas, evt);
-  var p = { x, y };
-
-  if (shape) {
-    if (shape.isRightShape()) {
-      elements.push(shape);
-    }
-    shape = null;
-  }
-
-  console.log(p);
-}
-window.addEventListener("mousedown", onMouseDown);
-window.addEventListener("mousemove", onMouseMove);
-window.addEventListener("mouseup", onMouseUp);
-// end main
-
-function drawMouseInfo() {
-  const info = {
-    x: app.x,
-    y: app.y
-  };
-  var text = JSON.stringify(info);
-  ctx.font = "24px serif";
-
-  var textWidth = ctx.measureText(text).width;
-  var x = canvas.width - textWidth - 24;
-  var y = canvas.height - 24;
-  ctx.fillStyle = "white";
-  ctx.fillText(text, x, y);
-}
-
-var activeElement;
-function update() {
-  app.update();
-
-  var element = findElement(app.mouseInfo.current);
-  activeElement = element;
-
-  for (var e of elements) {
-    if (e === activeElement) {
-      e.toggle(true);
-    } else {
-      e.toggle(false);
+    var p = { x, y };
+    if (uiInstance.key === "line") {
+      shape = new Line(app, p);
+    } else if (uiInstance.key === "rect") {
+      shape = new Rect(p);
     }
   }
-}
 
-function clearCanvas() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-}
-function draw() {
-  app.draw();
-  drawMouseInfo();
+  function onMouseMove(evt) {
+    var p = getCanvasPoint(canvas, evt);
 
-  if (shape) {
-    shape.draw();
+    app.mouseInfo.current = p;
+
+    if (shape) {
+      shape.update(p);
+    }
   }
 
-  for (var e of elements) {
-    e.draw();
-  }
-}
+  function onMouseUp(evt) {
+    var { x, y } = getCanvasPoint(canvas, evt);
+    var p = { x, y };
 
-function loop() {
-  clearCanvas();
-  update();
-  draw();
+    if (shape) {
+      if (shape.isRightShape()) {
+        elements.push(shape);
+      }
+      shape = null;
+    }
+
+    console.log(p);
+  }
+  window.addEventListener("mousedown", onMouseDown);
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+  // end main
+
+  function drawMouseInfo() {
+    const info = {
+      x: app.x,
+      y: app.y
+    };
+    var text = JSON.stringify(info);
+    ctx.font = "24px serif";
+
+    var textWidth = ctx.measureText(text).width;
+    var x = canvas.width - textWidth - 24;
+    var y = canvas.height - 24;
+    ctx.fillStyle = "white";
+    ctx.fillText(text, x, y);
+  }
+
+  var activeElement;
+  function update() {
+    app.update();
+
+    var element = findElement(app.mouseInfo.current);
+    activeElement = element;
+
+    for (var e of elements) {
+      if (e === activeElement) {
+        e.toggle(true);
+      } else {
+        e.toggle(false);
+      }
+    }
+  }
+
+  function clearCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  function draw() {
+    app.draw();
+    drawMouseInfo();
+
+    if (shape) {
+      shape.draw();
+    }
+
+    for (var e of elements) {
+      e.draw();
+    }
+  }
+
+  function loop() {
+    clearCanvas();
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
   requestAnimationFrame(loop);
 }
-requestAnimationFrame(loop);
+
+main();
