@@ -1,4 +1,4 @@
-import './style.css'
+import './style.css';
 // import javascriptLogo from './javascript.svg'
 // import viteLogo from '/vite.svg'
 
@@ -419,9 +419,9 @@ function update() {
   
   for (var e of elements) {
     if (e === activeElement) {
-      e.toggle(true)
+      e.toggle(true);
     } else {
-       e.toggle(false)
+       e.toggle(false);
     }
   }
 }
